@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Business Planner</title>
 <meta name="theme-color" content="#ffffff">
-<meta name="description" content="Business planner for MadisGenz Events and TUC Social Enterprise.">
+<meta name="description" content="A simple business planner: goals, orders, stock, money and marketing.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -255,15 +255,15 @@ function bizDefaults(){return{
   orders:[],customers:[],contacts:[],products:[],suppliers:[],launches:[],evals:{},
   income:[],expenses:[],bills:[],ads:[],discounts:[],visitors:{},posts:[],social:{},accounts:[],counter:0
 }}
-let G={settings:{currency:'RM'},active:'mg',biz:[{id:'mg',name:'MadisGenz Events',short:'MG',prefix:'MG'},{id:'tuc',name:'TUC Social Enterprise',short:'TUC',prefix:'TUC'}]};
+let G={settings:{currency:'RM'},active:null,biz:[]};
 try{const g=JSON.parse(localStorage.getItem(LSG)||'null');if(g&&g.biz&&g.biz.length)G=Object.assign(G,g)}catch(e){}
 let D;
 function loadBiz(id){const d=bizDefaults();try{const o=JSON.parse(localStorage.getItem(LSB+id)||'null');if(o)Object.keys(d).forEach(k=>{if(o[k]!==undefined)d[k]=o[k]})}catch(e){}return d}
-function curBiz(){return G.biz.find(b=>b.id===G.active)||G.biz[0]}
-D=loadBiz(curBiz().id);
+function curBiz(){return G.biz.find(b=>b.id===G.active)||G.biz[0]||null}
+D=curBiz()?loadBiz(curBiz().id):bizDefaults();
 let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(flush,250)}
-function flush(){clearTimeout(saveT);try{localStorage.setItem(LSB+curBiz().id,JSON.stringify(D));localStorage.setItem(LSG,JSON.stringify(G))}catch(e){toast('Could not save — phone storage may be full')}}
+function flush(){clearTimeout(saveT);try{if(curBiz())localStorage.setItem(LSB+curBiz().id,JSON.stringify(D));localStorage.setItem(LSG,JSON.stringify(G))}catch(e){toast('Could not save — phone storage may be full')}}
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 
@@ -760,6 +760,23 @@ function bizForm(b){
 }
 function lastBackup(){let d=null;try{d=localStorage.getItem('bizplanner-backup')}catch(e){}return d?'Last backup: '+fmtL(d)+'.':'No backup downloaded yet.'}
 
+/* ===== welcome (first open) ===== */
+function vWelcome(){
+  return `<div style="padding:28px 4px 0">
+   <div class="mono" style="width:56px;height:56px;border-radius:16px;margin-bottom:18px">${ic('bag',26)}</div>
+   <div class="sub">Welcome to</div><h1 class="pg" style="font-size:32px">Business Planner</h1>
+   <p class="muted" style="line-height:1.5;margin:6px 0 22px">Plan goals, track orders, stock, money and marketing — all saved privately on this phone.</p>
+   <div class="box"><div class="bh"><span>Your business</span></div><div class="bb">
+    <label class="fl">Business name</label><input class="in" id="wName" placeholder="e.g. Kuching Crafts" autocomplete="organization">
+    <label class="fl">Short name (2–4 letters, optional)</label><input class="in" id="wShort" placeholder="e.g. KC" maxlength="4" style="text-transform:uppercase">
+    <label class="fl">Currency</label><input class="in" id="wCur" value="${esc(G.settings.currency||'RM')}">
+    <button class="btn" style="width:100%;margin-top:18px" data-a="startBiz">Start planning</button>
+   </div></div>
+   <p class="small muted" style="text-align:center">Run more than one business? You can add others later in Settings.</p>
+   <p class="small" style="text-align:center;margin-top:18px"><button class="link" data-a="pickRestore">Restore from a backup file</button></p>
+   <input type="file" id="restoreFile" accept=".json,application/json" style="display:none">
+  </div>`;
+}
 /* ===== render ===== */
 const VIEWS={home:vHome,plan:vPlan,overview:vOverview,goals:vGoals,todo:vTodo,day:vDay,calendar:vCalendar,yeargoals:vYearGoals,
  experiments:()=>vMod('experiments'),ideas:()=>vMod('ideas'),notes:()=>vMod('notes'),
@@ -769,6 +786,8 @@ const VIEWS={home:vHome,plan:vPlan,overview:vOverview,goals:vGoals,todo:vTodo,da
  posts:vPosts,social:vSocial,accounts:()=>vMod('accounts'),prefs:vPrefs};
 function render(){
   const v=view(),root=ROOT[v],b=curBiz();
+  if(!b){document.getElementById('app').innerHTML=vWelcome();document.getElementById('nav').innerHTML='';document.querySelector('nav.bn').style.display='none';return}
+  document.querySelector('nav.bn').style.display='';
   document.getElementById('app').innerHTML=`<div class="top"><button class="bizbtn" data-a="switchBiz"><span class="mono">${esc(b.short)}</span><span class="grow" style="min-width:0"><b>${esc(b.name)}</b><small>${G.biz.length>1?'Tap to switch business ▾':'Business planner'}</small></span></button><button class="iconbtn" data-a="go" data-v="prefs" aria-label="Settings">${ic('sliders')}</button></div>${VIEWS[v]()}${fab(v)}`;
   document.getElementById('nav').innerHTML=[['home','home','Home'],['plan','target','Plan'],['sales','bag','Sales'],['products','box','Products'],['money','money','Money']].map(([k,i,l])=>`<button class="${root===k?'on':''}" data-a="go" data-v="${k}">${ic(i)}${l}</button>`).join('');
 }
@@ -817,6 +836,10 @@ const A={
   go:(e,d)=>go(d.v),
   switchBiz:()=>pickSheet('Switch business',G.biz.map(b=>`<button class="trow" data-a="useBiz" data-id="${b.id}" style="border:1.5px solid ${b.id===G.active?'var(--ink)':'var(--line)'};border-radius:10px;margin-bottom:8px"><span class="mono">${esc(b.short)}</span><span class="grow"><b>${esc(b.name)}</b></span>${b.id===G.active?'<span class="pill f">Active</span>':''}</button>`).join('')+`<button class="link" data-a="addBiz">+ Add another business</button>`),
   useBiz:(e,d)=>{flush();G.active=d.id;D=loadBiz(d.id);U.order=null;U.goal=null;U.q={};save();closeSheet();go('home');toast('Switched to '+curBiz().name)},
+  startBiz:()=>{const n=document.getElementById('wName').value.trim();if(!n){toast('Type your business name');document.getElementById('wName').focus();return}
+    const sh=(document.getElementById('wShort').value.trim()||n.split(/\s+/).map(w=>w[0]).join('')).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)||'BIZ';
+    const cur=document.getElementById('wCur').value.trim();if(cur)G.settings.currency=cur;
+    const b={id:uid(),name:n,short:sh,prefix:sh};G.biz.push(b);G.active=b.id;D=loadBiz(b.id);D.overview.name=n;flush();go('home');toast('Welcome, '+n+'!')},
   addBiz:()=>bizForm(),editBiz:(e,d)=>bizForm(G.biz.find(b=>b.id===d.id)),
   mmShift:(e,d)=>{U.mm=addM(U.mm,+d.n);render()},yrShift:(e,d)=>{U.yr=String(+U.yr+ +d.n);render()},
   dayShift:(e,d)=>{U.day=addD(U.day,+d.n);render()},dayToday:()=>{U.day=today();render()},openDay:(e,d)=>{U.day=d.d;go('day')},

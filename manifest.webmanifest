@@ -1,7 +1,7 @@
 {
   "name": "Business Planner",
   "short_name": "Business",
-  "description": "Business planner for MadisGenz Events and TUC Social Enterprise.",
+  "description": "A simple business planner: goals, orders, stock, money and marketing.",
   "start_url": "./index.html#home",
   "scope": "./",
   "display": "standalone",

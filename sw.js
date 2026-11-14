@@ -1,5 +1,5 @@
 // Keeps the planner working offline. Bump VERSION when you update the app.
-const VERSION = 'biz-v1';
+const VERSION = 'biz-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
